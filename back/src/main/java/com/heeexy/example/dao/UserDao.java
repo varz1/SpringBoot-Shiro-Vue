@@ -1,6 +1,7 @@
 package com.heeexy.example.dao;
 
 import com.alibaba.fastjson.JSONObject;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.List;
  * @description: 用户/角色/权限
  * @date: 2017-11-14 15:08:45
  */
+@Mapper
 public interface UserDao {
     /**
      * 查询用户数量

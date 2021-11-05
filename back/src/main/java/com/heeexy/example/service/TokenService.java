@@ -1,35 +1,37 @@
 package com.heeexy.example.service;
 
-import com.github.benmanes.caffeine.cache.Cache;
 import com.heeexy.example.config.exception.CommonJsonException;
 import com.heeexy.example.dao.LoginDao;
 import com.heeexy.example.dto.session.SessionUserInfo;
+import com.heeexy.example.util.JwtUtils;
 import com.heeexy.example.util.StringTools;
 import com.heeexy.example.util.constants.ErrorEnum;
+import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
 public class TokenService {
 
-    @Autowired
-    Cache<String, SessionUserInfo> cacheMap;
 
     @Autowired
     LoginDao loginDao;
+
+    @Autowired
+    RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 用户登录验证通过后(sso/帐密),生成token,记录用户已登录的状态
      */
     public String generateToken(String username) {
         MDC.put("username", username);
-        String token = UUID.randomUUID().toString().replace("-", "").substring(0, 20);
-        //设置用户信息缓存
+        String token = JwtUtils.getToken(username);
         setCache(token, username);
         return token;
     }
@@ -47,8 +49,14 @@ public class TokenService {
         if (StringTools.isNullOrEmpty(token)) {
             throw new CommonJsonException(ErrorEnum.E_20011);
         }
+        Claims claimsFromToken = JwtUtils.getClaimsFromToken(token);
+        if (claimsFromToken == null) throw new CommonJsonException(ErrorEnum.E_20011);
+//        if (JwtUtils.isTokenExpired(claimsFromToken)) {
+//            throw new JwtException("TOKEN_EXPIRED");
+//        }
         log.debug("根据token从缓存中查询用户信息,{}", token);
-        SessionUserInfo info = cacheMap.getIfPresent(token);
+        String nameFromToken = JwtUtils.getNameFromToken(token);
+        SessionUserInfo info = (SessionUserInfo) redisTemplate.opsForHash().get(nameFromToken, "info");
         if (info == null) {
             log.info("没拿到缓存 token={}", token);
             throw new CommonJsonException(ErrorEnum.E_20011);
@@ -59,7 +67,9 @@ public class TokenService {
     private void setCache(String token, String username) {
         SessionUserInfo info = getUserInfoByUsername(username);
         log.info("设置用户信息缓存:token={} , username={}, info={}", token, username, info);
-        cacheMap.put(token, info);
+        redisTemplate.opsForHash().put(username, "info", info);
+        redisTemplate.opsForHash().put(username, "token", token);
+        redisTemplate.expire(username, 1, TimeUnit.DAYS);
     }
 
     /**
@@ -67,8 +77,9 @@ public class TokenService {
      */
     public void invalidateToken() {
         String token = MDC.get("token");
+        String username = MDC.get("username");
         if (!StringTools.isNullOrEmpty(token)) {
-            cacheMap.invalidate(token);
+            redisTemplate.opsForHash().delete(username, "token", "info");
         }
         log.debug("退出登录,清除缓存:token={}", token);
     }

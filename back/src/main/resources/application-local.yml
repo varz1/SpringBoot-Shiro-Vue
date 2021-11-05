@@ -3,6 +3,10 @@ spring:
   datasource:
       url: jdbc:mysql://localhost:3306/example?useUnicode=true&characterEncoding=UTF-8&allowMultiQueries=true&serverTimezone=Asia/Shanghai
       username: root
-      password:
+      password: mysql123
+  redis:
+    port: 6379
 logging:
   config: classpath:logback-local.xml
+server:
+  port: 8081

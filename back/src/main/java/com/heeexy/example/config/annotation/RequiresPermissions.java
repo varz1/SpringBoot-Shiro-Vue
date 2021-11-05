@@ -1,5 +1,7 @@
 package com.heeexy.example.config.annotation;
 
+import com.heeexy.example.util.constants.ErrorEnum;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

@@ -4,3 +4,4 @@ public enum Logical {
     AND, OR
 }
 
+
